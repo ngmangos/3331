@@ -3,7 +3,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Response {
-    private String expectedType = "GET";
+    // private String expectedType = "GET";
     private String connectionType = "HTTP/1.1";
     private int returnCode = 200;
     private String returnMessage = "OK";
