@@ -3,9 +3,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Response {
-    private String expectedType = "";
+    private String expectedType = "GET";
     private String connectionType = "HTTP/1.1";
-    private String returnCode = "200";
+    private int returnCode = 200;
     private String returnMessage = "OK";
     private Header header;
     private boolean invalid = false;
@@ -67,15 +67,17 @@ public class Response {
 
         String[] responseLineArray = responseLine.split(" ", 3);
 
-        if (responseLineArray.length != 3) {
+        if (responseLineArray.length != 2) {
             System.out.println("Not enough response args.");
             invalid = true;
             return;
         }
 
-        connectionType = responseLineArray[2];
+        connectionType = responseLineArray[0];
+        returnCode = Integer.parseInt(responseLineArray[1]);
+        returnMessage = responseLineArray.length == 3 ? responseLineArray[2] : "";
 
-        Pattern getPattern = Pattern.compile("HTTP/1\\.1  ([0-9]+) (*)");
+        Pattern getPattern = Pattern.compile("HTTP/1\\.1  (\\d{3})");
         Matcher matcher = getPattern.matcher(responseLine);
 
         if (!matcher.matches()) {
@@ -88,6 +90,5 @@ public class Response {
 
         header.updateHeader("Via: 1.1 z5417382");
         header.updateHeader("Connection: close");
-        header.removeHeader("Proxy-Connection");
     }
 }

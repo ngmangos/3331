@@ -78,11 +78,14 @@ public class Proxy {
                         request.addToMessage(requestString);
                     }
 
+                    Response response;
                     try (Socket originServerSocket = new Socket(request.getDestinationName(), request.getDestinationPort())) {
-                        Response response = handleOrigin(originServerSocket, clientOutputStream, request);           
+                        response = handleOrigin(originServerSocket, clientOutputStream, request);           
                     }
 
                     // send response to client :)
+                    clientOutputStream.write(response.buildClientResponse().getBytes());
+                    clientOutputStream.flush();
 
                     if (request.connectionClose()) {
                         keepAlive = false;
