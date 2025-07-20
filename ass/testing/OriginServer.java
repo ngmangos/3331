@@ -10,22 +10,27 @@ public class OriginServer {
 
             while (true) {
                 try (Socket clientSocket = serverSocket.accept();
-                     BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-                     PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true)) {
+                     InputStream in = clientSocket.getInputStream();
+                     OutputStream out = clientSocket.getOutputStream()) {
 
                     // Read request (optional, for debugging)
-                    String line;
-                    while (!(line = in.readLine()).isEmpty()) {
-                        System.out.println("Received: " + line);
-                    }
+                    byte[] buffer = new byte[1024];
+                    int bytesRead = in.read(buffer);
+
+                    String line = new String(buffer, 0, bytesRead);
+                    if (line.isEmpty())
+                        return;
+                    
+                    System.out.println("Received: " + line);
 
                     // Send a simple HTTP response
                     String response = "HTTP/1.1 200 OK\r\n" +
                                      "Content-Type: text/plain\r\n" +
                                      "Connection: close\r\n" +
                                      "\r\n" +
-                                     "Hello from Origin Server!";
-                    out.println(response);
+                                     "Hello from origin server";
+
+                    out.write(response.getBytes());
 
                 } catch (IOException e) {
                     System.err.println("Server error: " + e.getMessage());

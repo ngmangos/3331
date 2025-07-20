@@ -45,7 +45,7 @@ public class Response {
         invalid = true;
     }
 
-    public Response(String response) {
+    public Response(String response, Request request) {
         String[] responseArray = response.split("\r\n\r\n", 2);
         if (responseArray.length != 2) {
             System.out.println("Received response with no empty line (\\r\\n\\r\\n) - waiting for next response...");
@@ -67,7 +67,7 @@ public class Response {
 
         String[] responseLineArray = responseLine.split(" ", 3);
 
-        if (responseLineArray.length != 2) {
+        if (responseLineArray.length < 2) {
             System.out.println("Not enough response args.");
             invalid = true;
             return;
@@ -77,10 +77,10 @@ public class Response {
         returnCode = Integer.parseInt(responseLineArray[1]);
         returnMessage = responseLineArray.length == 3 ? responseLineArray[2] : "";
 
-        Pattern getPattern = Pattern.compile("HTTP/1\\.1  (\\d{3})");
+        Pattern getPattern = Pattern.compile("HTTP/1\\.1\\s+(\\d{3})(.*)");
         Matcher matcher = getPattern.matcher(responseLine);
 
-        if (!matcher.matches()) {
+        if (!matcher.find()) {
             System.out.println("Not a valid response line.");
             invalid = true;
             return;
@@ -89,6 +89,6 @@ public class Response {
         header = new Header(Arrays.copyOfRange(lines, 1, lines.length));
 
         header.updateHeader("Via: 1.1 z5417382");
-        header.updateHeader("Connection: close");
+        header.updateHeader(request.getClientConnectionHeader());
     }
 }

@@ -45,6 +45,7 @@ public class Proxy {
             boolean keepAlive = true;
             
             while (keepAlive) {
+                System.out.println("STARTING ONE");
                 try {
                     clientSocket.setSoTimeout(KEEP_ALIVE_TIMEOUT);
                     byte[] buffer = new byte[1024];
@@ -83,6 +84,7 @@ public class Proxy {
                         response = handleOrigin(originServerSocket, clientOutputStream, request);           
                     }
 
+                    System.out.println(response.buildClientResponse());
                     // send response to client :)
                     clientOutputStream.write(response.buildClientResponse().getBytes());
                     clientOutputStream.flush();
@@ -117,12 +119,13 @@ public class Proxy {
                 return null;
             
             String responseString = new String(buffer, 0, bytesRead);
-            Response response = new Response(responseString);
+            Response response = new Response(responseString, request);
             
             if (response.isInvalid())
                 return null;
 
             while (!response.messageComplete())  {
+                System.out.println("Need more mannnn");
                 bytesRead = originInputStream.read(buffer);
                 if (bytesRead == -1 || bytesRead == 0)
                     break;

@@ -8,22 +8,43 @@ public class Client {
         String targetUrl = "http://localhost:8000/test"; // Request to forward via proxy
 
         try (Socket proxySocket = new Socket(proxyHost, proxyPort);
-            PrintWriter out = new PrintWriter(proxySocket.getOutputStream(), true);
-            BufferedReader in = new BufferedReader(new InputStreamReader(proxySocket.getInputStream()))) {
-
+            InputStream in = proxySocket.getInputStream();
+            OutputStream out = proxySocket.getOutputStream()) {
             // Send HTTP GET request via proxy
-            String request = "GET " + targetUrl + " HTTP/1.1\r\n" +
+            String request = "POST " + targetUrl + " HTTP/1.1\r\n" +
                             "Host: localhost:8000\r\n" +
                             "Connection: keep-alive\r\n" +
-                            "\r\n";
-            out.println(request);
+                            "Content-Length: 12\r\n" +
+                            "\r\n" +
+                            "HELLO HUMANS";
+            out.write(request.getBytes());
 
             // Read response from proxy
-            String line;
-            while ((line = in.readLine()) != null) {
-                System.out.println("Response from proxy: " + line);
-            }
+            byte[] buffer = new byte[1024];
 
+            int bytesRead = in.read(buffer);
+            String line = new String(buffer, 0, bytesRead);
+            if (line.isEmpty())
+                return;
+            System.out.println(line);
+
+            out.flush();
+
+            out.write(request.getBytes());
+            bytesRead = in.read(buffer);
+            line = new String(buffer, 0, bytesRead);
+            if (line.isEmpty())
+                return;
+            System.out.println(line);
+
+            out.flush();
+
+            out.write(request.getBytes());
+            bytesRead = in.read(buffer);
+            line = new String(buffer, 0, bytesRead);
+            if (line.isEmpty())
+                return;
+            System.out.println(line);
         } catch (IOException e) {
             System.err.println("Client error: " + e.getMessage());
         }

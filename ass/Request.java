@@ -11,6 +11,7 @@ public class Request {
     private Header header;
     private boolean empty = false;
     private boolean invalid = false;
+    private String clientConnectionHeader = "Connection: close";
     private boolean connectionClose = false;
     private String messageBody = "";
 
@@ -36,6 +37,10 @@ public class Request {
 
     public boolean connectionClose() {
         return connectionClose;
+    }
+
+    public String getClientConnectionHeader() {
+        return clientConnectionHeader;
     }
 
     public boolean messageComplete() {
@@ -100,7 +105,7 @@ public class Request {
 
         connectionType = requestLineArray[2];
 
-        Pattern getPattern = Pattern.compile(requestType + " (.*) HTTP/1\\.1");
+        Pattern getPattern = Pattern.compile(requestType + "\\s+(.*)\\s+HTTP/1\\.1");
         Matcher matcher = getPattern.matcher(requestLine);
 
         if (!matcher.matches()) {
@@ -111,6 +116,7 @@ public class Request {
 
         header = new Header(Arrays.copyOfRange(lines, 1, lines.length));
 
+        clientConnectionHeader = header.getHeader("Connection");
         connectionClose = header.getHeader("Proxy-Connection").toLowerCase().contains("close");
         connectionClose = header.getHeader("Connection").toLowerCase().contains("close");
 
