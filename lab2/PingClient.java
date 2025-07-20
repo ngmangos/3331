@@ -1,4 +1,3 @@
-import java.io.*;
 import java.net.*;
 import java.util.*;
 
@@ -19,7 +18,6 @@ public class PingClient {
         int pingCount = 15;
         
         List<Long> rttList = new ArrayList<Long>();
-        int packetsReceived = 0;
         int packetsLost = 0;
         
         long startTransmissionTime = System.currentTimeMillis();
@@ -44,9 +42,7 @@ public class PingClient {
 
                 long rtt = receiveTime - sendTime;
                 rttList.add(rtt);
-                packetsReceived++;
-
-                String response = new String(receivePacket.getData(), 0, receivePacket.getLength());
+                
                 System.out.println("PING to " + args[0] + ", seq=" + seq + ", rtt=" + rtt + " ms");
             } catch (SocketTimeoutException e) {
                 System.out.println("PING to " + args[0] + ", seq=" + seq + ", rtt=timeout");
