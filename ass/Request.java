@@ -11,9 +11,13 @@ public class Request {
     private Header header;
     private boolean empty = false;
     private boolean invalid = false;
-    private String clientConnectionHeader = "Connection: close";
+    private String clientConnectionHeader = "Connection: keep-alive";
     private boolean connectionClose = false;
     private String messageBody = "";
+
+    public String getDestinationURL() {
+        return destinationName + ":" + destinationPort;
+    }
 
     public String getRequestType() {
         return requestType;
@@ -41,6 +45,10 @@ public class Request {
 
     public String getClientConnectionHeader() {
         return clientConnectionHeader;
+    }
+
+    public boolean contentExpected() {
+        return requestType.equals("POST");
     }
 
     public boolean messageComplete() {
@@ -77,28 +85,29 @@ public class Request {
             return;
         }
 
-        String[] lines = requestArray[0].split("\r\n");
+        String[] headerLines = requestArray[0].split("\r\n");
         messageBody = requestArray[1];
 
-        String requestLine = lines.length > 0 ? lines[0].trim() : "";
+        String requestLine = headerLines.length > 0 ? headerLines[0].trim() : "";
 
         if (requestLine.isEmpty()) {
             System.out.println("Received empty request - waiting for next request...");
             empty = true;
             return;
         }
-        System.out.println("Received: " + requestLine.substring(0, Math.min(20, requestLine.length())));
 
         String[] requestLineArray = requestLine.split(" ");
-        requestType = requestLineArray[0];
+        requestType = requestLineArray[0].trim();
         if (!Arrays.asList("GET", "HEAD", "POST", "CONNECT").stream().anyMatch(method -> method.equals(requestType))) {
             System.out.println("Not a valid request type.");
+            // Not a valid request type
             invalid = true;
             return;
         }
 
         if (requestLineArray.length != 3) {
             System.out.println("Not enough request args.");
+            // Request line has not enough args
             invalid = true;
             return;
         }
@@ -110,12 +119,20 @@ public class Request {
 
         if (!matcher.matches()) {
             System.out.println("Not a valid request line.");
+            // Request does not have valid syntax
             invalid = true;
             return;
         }
 
-        header = new Header(Arrays.copyOfRange(lines, 1, lines.length));
+        header = new Header(Arrays.copyOfRange(headerLines, 1, headerLines.length));
 
+        String requestTarget = requestLineArray[1].trim();
+
+        if (requestType.equals("CONNECT")) {
+            handleConnect(requestTarget);
+            return;
+        }
+        
         clientConnectionHeader = header.getHeader("Connection");
         connectionClose = header.getHeader("Proxy-Connection").toLowerCase().contains("close");
         connectionClose = header.getHeader("Connection").toLowerCase().contains("close");
@@ -124,23 +141,40 @@ public class Request {
         header.updateHeader("Connection: close");
         header.removeHeader("Proxy-Connection");
 
-        String requestTarget = requestLineArray[1];
-        if (requestTarget.toLowerCase().startsWith("https://")) {
-            requestTarget = requestTarget.substring(8);
-        } else if (requestTarget.toLowerCase().startsWith("http://")) {
+        
+        if (requestTarget.toLowerCase().startsWith("http://")) {
             requestTarget = requestTarget.substring(7);
-        }
-
-        destinationName = requestTarget.split("/")[0];
+        } else {
+            invalid = true;
+            return;
+        }  
+        
+        destinationName = requestTarget.split("/")[0].toLowerCase();
         file = requestTarget.substring(destinationName.length());
-        if (!file.startsWith("/")) {
+        if (!file.startsWith("/"))
             file = "/" + file;
-        }
 
         if (destinationName.contains(":")) {
             String[] hostNamesParts = destinationName.split(":");
             destinationName = hostNamesParts[0];
             destinationPort = Integer.parseInt(hostNamesParts[1]);
         }
+    }
+
+    private void handleConnect(String requestTarget) {
+        // Request in authority form
+        if (!requestTarget.contains(":")) {
+            this.invalid = true;
+            return;
+        }
+        String[] fileCheckArray = requestTarget.split("/");
+        if (fileCheckArray.length > 1 && !fileCheckArray[1].equals("")) {
+            this.invalid = true;
+            return;
+        }
+        
+        String[] hostNamesParts = requestTarget.split(":");
+        this.destinationName = hostNamesParts[0].toLowerCase();
+        this.destinationPort = Integer.parseInt(hostNamesParts[1]);
     }
 }

@@ -1,18 +1,35 @@
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Response {
-    // private String expectedType = "GET";
+    private ZonedDateTime responseDate = ZonedDateTime.now();
+    private String requestType = "GET";
     private String connectionType = "HTTP/1.1";
     private int returnCode = 200;
     private String returnMessage = "OK";
     private Header header;
     private boolean invalid = false;
     private String messageBody = "";
+    private int originServerPort = 80;
+    private String originServerName;
+
+    public int getContentLength() {
+        return messageBody.length();
+    }
+
+    public String getRequestType() {
+        return requestType;
+    }
 
     public boolean isInvalid() {
         return invalid;
+    }
+
+    public String getServerURL() {
+        return originServerName + ":" + originServerPort;
     }
 
     public boolean messageComplete() {
@@ -30,6 +47,12 @@ public class Response {
         return messageBody.length() >= contentLength;
     }
 
+    public boolean contentExpected() {
+        if (returnCode < 200 || returnCode > 299)
+            return true;
+        return requestType.equals("POST") || requestType.equals("GET");
+    }
+
     public void addToMessage(String messageContinued) {
         messageBody += messageContinued;
     }
@@ -39,6 +62,10 @@ public class Response {
                         header.getHeaderString() + "\r\n" +
                         messageBody;
         return response;
+    }
+    
+    public String getDateString() {
+        return responseDate.format(DateTimeFormatter.ofPattern("dd/MMM/yyyy:HH:mm:ss Z"));
     }
 
     public Response() {
@@ -90,5 +117,8 @@ public class Response {
 
         header.updateHeader("Via: 1.1 z5417382");
         header.updateHeader(request.getClientConnectionHeader());
+        requestType = request.getRequestType();
+        originServerPort = request.getDestinationPort();
+        originServerName = request.getDestinationName();
     }
 }
