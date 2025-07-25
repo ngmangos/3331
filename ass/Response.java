@@ -8,8 +8,8 @@ public class Response {
     private ZonedDateTime responseDate = ZonedDateTime.now();
     private String requestType = "GET";
     private String connectionType = "HTTP/1.1";
-    private int returnCode = 200;
-    private String returnMessage = "OK";
+    private int statusCode = 200;
+    private String reasonPhrase = "OK";
     private Header header;
     private boolean invalid = false;
     private String messageBody = "";
@@ -28,6 +28,10 @@ public class Response {
         return invalid;
     }
 
+    public int getStatusCode() {
+        return statusCode;
+    }
+
     public String getServerURL() {
         return originServerName + ":" + originServerPort;
     }
@@ -40,7 +44,7 @@ public class Response {
         String headerString = header.getHeader("content-length");
         int contentLength = 0;
         try {
-            contentLength = Integer.parseInt(headerString.split(":", 2)[1].trim());
+            contentLength = Integer.parseInt(headerString);
         } catch (NumberFormatException e) {
             return true;
         }
@@ -48,7 +52,7 @@ public class Response {
     }
 
     public boolean contentExpected() {
-        if (returnCode < 200 || returnCode > 299)
+        if (statusCode < 200 || statusCode > 299)
             return true;
         return requestType.equals("POST") || requestType.equals("GET");
     }
@@ -58,7 +62,7 @@ public class Response {
     }
 
     public String buildClientResponse() {
-        String response = connectionType + " " + returnCode + " " + returnMessage + "\r\n" +
+        String response = connectionType + " " + statusCode + " " + reasonPhrase + "\r\n" +
                         header.getHeaderString() + "\r\n" +
                         messageBody;
         return response;
@@ -68,41 +72,38 @@ public class Response {
         return responseDate.format(DateTimeFormatter.ofPattern("dd/MMM/yyyy:HH:mm:ss Z"));
     }
 
-    public Response() {
-        invalid = true;
+    public static String generateConnectionResponse() {
+        return "HTTP/1.1 200 Connection Established\r\n\r\n";
     }
 
     public Response(String response, Request request) {
         String[] responseArray = response.split("\r\n\r\n", 2);
         if (responseArray.length != 2) {
-            System.out.println("Received response with no empty line (\\r\\n\\r\\n) - waiting for next response...");
             invalid = true;
             return;
         }
 
         String[] lines = responseArray[0].split("\r\n");
-        messageBody = responseArray[1];
 
         String responseLine = lines.length > 0 ? lines[0].trim() : "";
 
         if (responseLine.isEmpty()) {
-            System.out.println("Received empty response - waiting for next response...");
             invalid = true;
             return;
         }
-        System.out.println("Received: " + responseLine.substring(0, Math.min(20, responseLine.length())));
 
         String[] responseLineArray = responseLine.split(" ", 3);
 
         if (responseLineArray.length < 2) {
-            System.out.println("Not enough response args.");
             invalid = true;
             return;
         }
 
         connectionType = responseLineArray[0];
-        returnCode = Integer.parseInt(responseLineArray[1]);
-        returnMessage = responseLineArray.length == 3 ? responseLineArray[2] : "";
+        statusCode = Integer.parseInt(responseLineArray[1]);
+        reasonPhrase = responseLineArray.length == 3 ? responseLineArray[2] : "";
+        if (statusCode != 204 || statusCode != 304)
+            messageBody = responseArray[1];
 
         Pattern getPattern = Pattern.compile("HTTP/1\\.1\\s+(\\d{3})(.*)");
         Matcher matcher = getPattern.matcher(responseLine);
@@ -118,7 +119,19 @@ public class Response {
         header.updateHeader("Via: 1.1 z5417382");
         header.updateHeader(request.getClientConnectionHeader());
         requestType = request.getRequestType();
-        originServerPort = request.getDestinationPort();
-        originServerName = request.getDestinationName();
+        originServerPort = request.getPort();
+        originServerName = request.getHost();
+    }
+
+    public Response(Request request, ResponseFile responseFile) {
+        statusCode = responseFile.getStatusCode();
+        reasonPhrase = responseFile.getReasonPhrase();
+        messageBody = responseFile.getMessageBody();
+        requestType = request.getRequestType();
+
+        header = new Header(new String[0]);
+        header.updateHeader(request.getClientConnectionHeader());
+        header.updateHeader("Content-Length: " + responseFile.getContentLength().toString());
+        header.updateHeader("Content-Type: " + responseFile.getContentType());
     }
 }

@@ -21,12 +21,12 @@ public class Cache {
     }
 
     public boolean responseInCache(Request request) {
-        String key = request.getDestinationURL();
+        String key = request.getURL();
         return cacheMap.containsKey(key);
     }
 
     public Response getResponse(Request request) throws NoSuchElementException {
-        String key = request.getDestinationURL();
+        String key = request.getURL();
         if (!cacheMap.containsKey(key)) {
             throw new NoSuchElementException("Key " + key + " not found");
         }
@@ -37,7 +37,7 @@ public class Cache {
 
     public void addResponseToCache(Response response) {
         int contentSize = response.getContentLength();
-        if (contentSize > maxObjectSize)
+        if (contentSize > maxObjectSize || response.getStatusCode() != 200)
             return;
 
         String key = response.getServerURL();

@@ -4,8 +4,8 @@ import java.util.regex.Pattern;
 
 public class Request {
     private String requestType = "";
-    private String destinationName = "";
-    private int destinationPort = 80;
+    private String host = "";
+    private int port = 80;
     private String file = "";
     private String connectionType = "HTTP/1.1";
     private Header header;
@@ -14,21 +14,22 @@ public class Request {
     private String clientConnectionHeader = "Connection: keep-alive";
     private boolean connectionClose = false;
     private String messageBody = "";
+    private String requestLine = "";
 
-    public String getDestinationURL() {
-        return destinationName + ":" + destinationPort;
+    public String getURL() {
+        return host + ":" + port;
     }
 
     public String getRequestType() {
         return requestType;
     }
 
-    public String getDestinationName() {
-        return destinationName;
+    public int getPort() {
+        return port;
     }
 
-    public int getDestinationPort() {
-        return destinationPort;
+    public String getHost() {
+        return host;
     }
 
     public boolean isInvalid() {
@@ -51,6 +52,10 @@ public class Request {
         return requestType.equals("POST");
     }
 
+    public String getRequestLine() {
+        return requestLine;
+    }
+
     public boolean messageComplete() {
         if (header.hasHeader("transfer-encoding"))
             return false;
@@ -59,7 +64,7 @@ public class Request {
         String headerString = header.getHeader("content-length");
         int contentLength = 0;
         try {
-            contentLength = Integer.parseInt(headerString.split(":", 2)[1].trim());
+            contentLength = Integer.parseInt(headerString);
         } catch (NumberFormatException e) {
             return true;
         }
@@ -71,7 +76,7 @@ public class Request {
     }
 
     public String buildServerRequest() {
-        String request = requestType + " " + destinationName + " " + connectionType + "\r\n" +
+        String request = requestType + " " + file + " " + connectionType + "\r\n" +
                         header.getHeaderString() + "\r\n" +
                         messageBody;
         return request;
@@ -80,7 +85,6 @@ public class Request {
     public Request(String request) {
         String[] requestArray = request.split("\r\n\r\n", 2);
         if (requestArray.length != 2) {
-            System.out.println("Received request with no empty line (\\r\\n\\r\\n) - waiting for next request...");
             empty = true;
             return;
         }
@@ -88,10 +92,9 @@ public class Request {
         String[] headerLines = requestArray[0].split("\r\n");
         messageBody = requestArray[1];
 
-        String requestLine = headerLines.length > 0 ? headerLines[0].trim() : "";
+        requestLine = headerLines.length > 0 ? headerLines[0].trim() : "";
 
         if (requestLine.isEmpty()) {
-            System.out.println("Received empty request - waiting for next request...");
             empty = true;
             return;
         }
@@ -99,15 +102,11 @@ public class Request {
         String[] requestLineArray = requestLine.split(" ");
         requestType = requestLineArray[0].trim();
         if (!Arrays.asList("GET", "HEAD", "POST", "CONNECT").stream().anyMatch(method -> method.equals(requestType))) {
-            System.out.println("Not a valid request type.");
-            // Not a valid request type
             invalid = true;
             return;
         }
 
         if (requestLineArray.length != 3) {
-            System.out.println("Not enough request args.");
-            // Request line has not enough args
             invalid = true;
             return;
         }
@@ -118,8 +117,6 @@ public class Request {
         Matcher matcher = getPattern.matcher(requestLine);
 
         if (!matcher.matches()) {
-            System.out.println("Not a valid request line.");
-            // Request does not have valid syntax
             invalid = true;
             return;
         }
@@ -133,7 +130,7 @@ public class Request {
             return;
         }
         
-        clientConnectionHeader = header.getHeader("Connection");
+        clientConnectionHeader = "Connection: " + header.getHeader("Connection");
         connectionClose = header.getHeader("Proxy-Connection").toLowerCase().contains("close");
         connectionClose = header.getHeader("Connection").toLowerCase().contains("close");
 
@@ -149,15 +146,17 @@ public class Request {
             return;
         }  
         
-        destinationName = requestTarget.split("/")[0].toLowerCase();
-        file = requestTarget.substring(destinationName.length());
-        if (!file.startsWith("/"))
-            file = "/" + file;
+        String[] requestTargetArray = requestTarget.split("/", 2);
+        host = requestTargetArray[0].toLowerCase();
+        if (requestTargetArray.length < 2) {
+            file = "/";
+        } else 
+            file = "/" + requestTargetArray[1];
 
-        if (destinationName.contains(":")) {
-            String[] hostNamesParts = destinationName.split(":");
-            destinationName = hostNamesParts[0];
-            destinationPort = Integer.parseInt(hostNamesParts[1]);
+        if (host.contains(":")) {
+            String[] hostNamesParts = host.split(":");
+            host = hostNamesParts[0];
+            port = Integer.parseInt(hostNamesParts[1]);
         }
     }
 
@@ -174,7 +173,7 @@ public class Request {
         }
         
         String[] hostNamesParts = requestTarget.split(":");
-        this.destinationName = hostNamesParts[0].toLowerCase();
-        this.destinationPort = Integer.parseInt(hostNamesParts[1]);
+        this.host = hostNamesParts[0].toLowerCase();
+        this.port = Integer.parseInt(hostNamesParts[1]);
     }
 }

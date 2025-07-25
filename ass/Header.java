@@ -6,16 +6,16 @@ public class Header {
 
     public Header(String[] lines) {
         for (String header : lines) {
-            header = header.trim();
-            headers.put(header.split(":")[0].toLowerCase(), header);
+            String[] headerParts = header.split(":", 2);
+            headers.put(headerParts[0].toLowerCase().trim(), headerParts[1].trim().toLowerCase());
         }
     }
 
     public void updateHeader(String newHeader) {
-        String[] headerParts = newHeader.split(":");
+        String[] headerParts = newHeader.split(":", 2);
         if (headerParts.length < 2)
             return;
-        headers.put(headerParts[0].toLowerCase(), newHeader);
+        headers.put(headerParts[0].trim().toLowerCase(), headerParts[1].trim().toLowerCase());
     }
 
     public void removeHeader(String keyword) {
@@ -32,8 +32,8 @@ public class Header {
 
     public String getHeaderString() {
         String resultString = "";
-        for (String value : headers.values()) 
-            resultString += value + "\r\n";
+        for (Map.Entry<String, String> entry : headers.entrySet()) 
+            resultString += entry.getKey() + ":" + entry.getValue() + "\r\n";
         resultString += "\r\n";
         return resultString;
     }

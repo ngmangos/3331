@@ -34,11 +34,10 @@ public class Proxy {
             System.out.println("Usage: java WebServer PORT TIMEOUT MAXOBJECT MAXCACHE");
             System.exit(1);
         }
-
         Proxy proxy;
         try {
             int port = Integer.parseInt(args[0]);
-            int timeOut = Integer.parseInt(args[1]);
+            int timeOut = Integer.parseInt(args[1]) * 1000;
             int maxObjectSize = Integer.parseInt(args[2]);
             int maxCacheSize = Integer.parseInt(args[3]);
             proxy = new Proxy(port, timeOut, maxObjectSize, maxCacheSize);            
@@ -56,16 +55,13 @@ public class Proxy {
         try (ServerSocket serverSocket = new ServerSocket()) {
             serverSocket.setReuseAddress(true);
             serverSocket.bind(new InetSocketAddress(proxy.getHost(), proxy.getPort()));
-            System.out.println("Server listening on " + proxy.getHost() + ":" + proxy.getPort());
             
             while (true) {
                 Socket clientSocket;
                 try {
                     clientSocket = serverSocket.accept();
-                    System.out.println(String.format("Connected to client %s", clientSocket.getRemoteSocketAddress()));
                     new Thread(new ClientHandler(clientSocket, proxy)).start();
                 } catch (IOException e) {
-                    System.err.println("Error handling client: " + e.getMessage());
                 }
             }
         } catch (IOException e) {

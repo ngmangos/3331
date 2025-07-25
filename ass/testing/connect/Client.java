@@ -5,21 +5,21 @@ public class Client {
     public static void main(String[] args) {
         String proxyHost = "127.0.0.1";
         int proxyPort = 8080; // Proxy's listening port
-        String targetUrl = "http://localhost:8443/test";
-        String connectUrl = "localhost:8443"; // Request to forward via proxy
+        String targetUrl = "http://localhost:443/test";
+        String connectUrl = "localhost:443"; // Request to forward via proxy
 
         try (Socket proxySocket = new Socket(proxyHost, proxyPort);
             InputStream in = proxySocket.getInputStream();
             OutputStream out = proxySocket.getOutputStream()) {
             // Send HTTP GET request via proxy
             String request = "POST " + targetUrl + " HTTP/1.1\r\n" +
-                            "Host: localhost:8443\r\n" +
+                            "Host: localhost:443\r\n" +
                             "Connection: keep-alive\r\n" +
                             "Content-Length: 12\r\n" +
                             "\r\n" +
                             "HELLO HUMANS\n\n";
             String connect = "CONNECT " + connectUrl + " HTTP/1.1\r\n" +
-                            "Host: localhost:8443\r\n" +
+                            "Host: localhost:443\r\n" +
                             "\r\n";
             out.write(connect.getBytes());
 

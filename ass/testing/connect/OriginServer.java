@@ -3,7 +3,7 @@ import java.net.*;
 
 public class OriginServer {
     public static void main(String[] args) {
-        int port = 8443; // Origin server port
+        int port = 443; // Origin server port
 
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             System.out.println("Origin Server listening on port " + port);
