@@ -1,0 +1,177 @@
+import java.io.*;
+import java.net.*;
+import java.util.concurrent.*;
+
+public class TestClient {
+    private static final String PROXY_HOST = "127.0.0.1";
+    private final int proxyPort;
+    private final ExecutorService threadPool;
+    
+    public TestClient(int proxyPort) {
+        this.proxyPort = proxyPort;
+        this.threadPool = Executors.newCachedThreadPool();
+    }
+    
+    public void testNormalRequest() {
+        threadPool.execute(() -> sendRequest("GET http://example.com/test HTTP/1.1"));
+    }
+    
+    public void testConnect() {
+        threadPool.execute(() -> {
+            try (Socket socket = new Socket(PROXY_HOST, proxyPort)) {
+                PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+                BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                
+                // Send CONNECT request
+                out.println("CONNECT example.com:443 HTTP/1.1");
+                out.println("Host: example.com:443");
+                out.println();
+                out.flush();
+                
+                // Read response
+                String line;
+                while ((line = in.readLine()) != null) {
+                    System.out.println("CONNECT response: " + line);
+                    if (line.isEmpty()) break;
+                }
+                
+                // If we got here, CONNECT was successful
+                System.out.println("CONNECT successful, can now tunnel HTTPS traffic");
+                
+            } catch (IOException e) {
+                System.out.println("CONNECT failed: " + e.getMessage());
+            }
+        });
+    }
+    
+    public void testMalformedConnect() {
+        threadPool.execute(() -> sendRequest("CONNECT example.com:8000 HTTP/1.1")); // Should fail (port not 443)
+    }
+    
+    public void testNoHost() {
+        threadPool.execute(() -> sendRequest("GET http:///test HTTP/1.1")); // Missing host
+    }
+    
+    public void testSelfLoop() {
+        threadPool.execute(() -> sendRequest("GET http://" + PROXY_HOST + ":" + proxyPort + "/test HTTP/1.1"));
+    }
+    
+    public void testTimeout() {
+        threadPool.execute(() -> sendRequest("GET http://localhost:8000/timeout HTTP/1.1"));
+    }
+    
+    public void testConnectionRefused() {
+        threadPool.execute(() -> sendRequest("GET http://localhost:9999/refuse HTTP/1.1")); // Assuming nothing on 9999
+    }
+    
+    public void testConnectionClosed() {
+        threadPool.execute(() -> sendRequest("GET http://localhost:8000/close HTTP/1.1"));
+    }
+    
+    public void testConcurrentRequests(int count) {
+        for (int i = 0; i < count; i++) {
+            final int num = i;
+            threadPool.execute(() -> {
+                sendRequest("GET http://localhost:8000/concurrent-" + num + " HTTP/1.1");
+            });
+        }
+    }
+    
+    private void sendRequest(String requestLine) {
+        try (Socket socket = new Socket(PROXY_HOST, proxyPort)) {
+            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            
+            // Send request
+            out.println(requestLine);
+            out.println("Host: example.com");
+            out.println();
+            out.flush();
+            
+            // Read response
+            String line;
+            while ((line = in.readLine()) != null) {
+                System.out.println("Response for '" + requestLine + "': " + line);
+            }
+        } catch (IOException e) {
+            System.out.println("Request failed for '" + requestLine + "': " + e.getMessage());
+        }
+    }
+    
+    public void shutdown() {
+        threadPool.shutdown();
+        try {
+            if (!threadPool.awaitTermination(5, TimeUnit.SECONDS)) {
+                threadPool.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            threadPool.shutdownNow();
+        }
+    }
+    
+    public static void main(String[] args) {
+        if (args.length < 1) {
+            System.out.println("Usage: java TestClient PROXY_PORT [TEST_CASE]");
+            System.out.println("TEST_CASE can be: normal, connect, malformed, nohost, loop, timeout, refused, closed, concurrent");
+            return;
+        }
+        
+        int proxyPort = Integer.parseInt(args[0]);
+        TestClient client = new TestClient(proxyPort);
+        
+        if (args.length > 1) {
+            switch (args[1].toLowerCase()) {
+                case "normal":
+                    client.testNormalRequest();
+                    break;
+                case "connect":
+                    client.testConnect();
+                    break;
+                case "malformed":
+                    client.testMalformedConnect();
+                    break;
+                case "nohost":
+                    client.testNoHost();
+                    break;
+                case "loop":
+                    client.testSelfLoop();
+                    break;
+                case "timeout":
+                    client.testTimeout();
+                    break;
+                case "refused":
+                    client.testConnectionRefused();
+                    break;
+                case "closed":
+                    client.testConnectionClosed();
+                    break;
+                case "concurrent":
+                    int count = args.length > 2 ? Integer.parseInt(args[2]) : 10;
+                    client.testConcurrentRequests(count);
+                    break;
+                default:
+                    System.out.println("Unknown test case: " + args[1]);
+            }
+        } else {
+            // Run all tests
+            client.testNormalRequest();
+            client.testConnect();
+            client.testMalformedConnect();
+            client.testNoHost();
+            client.testSelfLoop();
+            client.testTimeout();
+            client.testConnectionRefused();
+            client.testConnectionClosed();
+            client.testConcurrentRequests(5);
+        }
+        
+        // Wait for tests to complete
+        try {
+            Thread.sleep(5000);
+        } catch (InterruptedException e) {
+            // Ignore
+        }
+        
+        client.shutdown();
+    }
+}
