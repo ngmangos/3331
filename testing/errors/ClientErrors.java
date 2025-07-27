@@ -13,7 +13,7 @@ public class ClientErrors {
     }
     
     public void testNormalRequest() {
-        threadPool.execute(() -> sendRequest("GET http://example.com/test HTTP/1.1"));
+        threadPool.execute(() -> sendRequest("GET http://example.com HTTP/1.1"));
     }
 
     public void testCachedRequest() {
