@@ -1,9 +1,9 @@
 import java.io.*;
 import java.net.*;
 
-public class OriginServer {
+public class OriginServerBasic {
     public static void main(String[] args) {
-        int port = 443; // Origin server port
+        int port = 8000; // Origin server port
 
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             System.out.println("Origin Server listening on port " + port);
@@ -32,15 +32,6 @@ public class OriginServer {
 
                     out.write(response.getBytes());
 
-                    bytesRead = in.read(buffer);
-
-                    line = new String(buffer, 0, bytesRead);
-                    if (line.isEmpty())
-                        return;
-                    
-                    System.out.println("Received: " + line);
-                    System.out.println("Server reached the end");
-                    while (true) {}
                 } catch (IOException e) {
                     System.err.println("Server error: " + e.getMessage());
                 }

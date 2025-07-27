@@ -2,12 +2,12 @@ import java.io.*;
 import java.net.*;
 import java.util.concurrent.*;
 
-public class TestClient {
+public class ClientErrors {
     private static final String PROXY_HOST = "127.0.0.1";
     private final int proxyPort;
     private final ExecutorService threadPool;
     
-    public TestClient(int proxyPort) {
+    public ClientErrors(int proxyPort) {
         this.proxyPort = proxyPort;
         this.threadPool = Executors.newCachedThreadPool();
     }
@@ -117,7 +117,7 @@ public class TestClient {
         }
         
         int proxyPort = Integer.parseInt(args[0]);
-        TestClient client = new TestClient(proxyPort);
+        ClientErrors client = new ClientErrors(proxyPort);
         
         if (args.length > 1) {
             switch (args[1].toLowerCase()) {

@@ -2,13 +2,13 @@ import java.io.*;
 import java.net.*;
 import java.util.concurrent.*;
 
-public class TestOriginServer {
+public class OriginServerErrors {
     private static final String HOST = "127.0.0.1";
     private final int port;
     private final int timeout;
     private final ExecutorService threadPool;
     
-    public TestOriginServer(int port, int timeout) {
+    public OriginServerErrors(int port, int timeout) {
         this.port = port;
         this.timeout = timeout;
         this.threadPool = Executors.newCachedThreadPool();
@@ -125,7 +125,7 @@ public class TestOriginServer {
         int port = 8000;
         int timeout = 10000;
         
-        TestOriginServer server = new TestOriginServer(port, timeout);
+        OriginServerErrors server = new OriginServerErrors(port, timeout);
         server.start();
     }
 }

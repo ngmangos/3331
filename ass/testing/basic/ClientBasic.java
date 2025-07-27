@@ -1,8 +1,7 @@
-package basic;
 import java.io.*;
 import java.net.*;
 
-public class Client {
+public class ClientBasic {
     public static void main(String[] args) {
         String proxyHost = "127.0.0.1";
         int proxyPort = 8080; // Proxy's listening port
