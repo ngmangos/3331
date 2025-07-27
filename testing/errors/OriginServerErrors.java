@@ -62,6 +62,8 @@ public class OriginServerErrors {
                 while ((line = in.readLine()) != null && !line.isEmpty()) {
                     // Skip headers for this simple implementation
                 }
+
+                System.out.println(path);
                 
                 // Handle different test cases based on path
                 if (path.equals("/timeout")) {
@@ -76,13 +78,14 @@ public class OriginServerErrors {
                     // Simulate connection refused (not actually possible here)
                     sendErrorResponse(out, 502, "Connection refused");
                 } else if (path.equals("/notfound")) {
+                    System.out.println("Not found");
                     sendErrorResponse(out, 404, "Not Found");
                 } else if (path.equals("/slow")) {
                     // Send response slowly
-                    out.println("HTTP/1.1 200 OK");
-                    out.println("Content-Type: text/plain");
-                    out.println("Content-Length: 13");
-                    out.println();
+                    out.print("HTTP/1.1 200 OK\r\n");
+                    out.print("Content-Type: text/plain\r\n");
+                    out.print("Content-Length: 13\r\n");
+                    out.print("\r\n");
                     out.flush();
                     Thread.sleep(1000);
                     out.println("Slow response");
@@ -107,12 +110,11 @@ public class OriginServerErrors {
         }
         
         private void sendResponse(PrintWriter out, int code, String reason, String body) {
-            out.println("HTTP/1.1 " + code + " " + reason);
-            out.println("Content-Type: text/plain");
-            out.println("Content-Length: " + body.length());
-            out.println();
-            out.println(body);
-            out.flush();
+            out.print("HTTP/1.1 " + code + " " + reason + "\r\n");
+            out.print("Content-Type: text/plain" + "\r\n");
+            out.print("Content-Length: " + body.length() + "\r\n");
+            out.print("\r\n");
+            out.print(body);
         }
         
         private void sendErrorResponse(PrintWriter out, int code, String reason) {
@@ -123,7 +125,7 @@ public class OriginServerErrors {
     public static void main(String[] args) {
         
         int port = 8000;
-        int timeout = 10000;
+        int timeout = 20000;
         
         OriginServerErrors server = new OriginServerErrors(port, timeout);
         server.start();

@@ -15,6 +15,11 @@ public class ClientErrors {
     public void testNormalRequest() {
         threadPool.execute(() -> sendRequest("GET http://example.com/test HTTP/1.1"));
     }
+
+    public void testCachedRequest() {
+        threadPool.execute(() -> sendRequest("GET http://example.com HTTP/1.1"));
+        threadPool.execute(() -> sendRequest("GET http://example.com HTTP/1.1"));
+    }
     
     public void testConnect() {
         threadPool.execute(() -> {
@@ -23,16 +28,18 @@ public class ClientErrors {
                 BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                 
                 // Send CONNECT request
-                out.println("CONNECT example.com:443 HTTP/1.1");
-                out.println("Host: example.com:443");
-                out.println();
+                out.print("CONNECT example.com:443 HTTP/1.1\r\n");
+                out.print("Host: example.com:443\r\n");
+                out.print("\r\n");
                 out.flush();
                 
                 // Read response
                 String line;
+                System.out.println("CONNECT response: ");
                 while ((line = in.readLine()) != null) {
-                    System.out.println("CONNECT response: " + line);
-                    if (line.isEmpty()) break;
+                    System.out.println(line);
+                    if (line.isEmpty())
+                        break;                        
                 }
                 
                 // If we got here, CONNECT was successful
@@ -76,6 +83,13 @@ public class ClientErrors {
             });
         }
     }
+
+    public void testDnsError() {
+        threadPool.execute(() -> {
+            // Use a domain that definitely doesn't exist
+            sendRequest("GET http://nonexistentdomainthatshouldneverexist123.com/test HTTP/1.1");
+        });
+    }
     
     private void sendRequest(String requestLine) {
         try (Socket socket = new Socket(PROXY_HOST, proxyPort)) {
@@ -83,15 +97,17 @@ public class ClientErrors {
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             
             // Send request
-            out.println(requestLine);
-            out.println("Host: example.com");
-            out.println();
+            out.print(requestLine + "\r\n");
+            out.print("Host: example.com" + "\r\n");
+            out.print("Connection: keep-alive\r\n");
+            out.print("\r\n");
             out.flush();
             
             // Read response
             String line;
+            System.out.println("Response for '" + requestLine + "': ");
             while ((line = in.readLine()) != null) {
-                System.out.println("Response for '" + requestLine + "': " + line);
+                System.out.println(line);
             }
         } catch (IOException e) {
             System.out.println("Request failed for '" + requestLine + "': " + e.getMessage());
@@ -124,6 +140,9 @@ public class ClientErrors {
                 case "normal":
                     client.testNormalRequest();
                     break;
+                case "cached":
+                    client.testCachedRequest();
+                    break;
                 case "connect":
                     client.testConnect();
                     break;
@@ -148,6 +167,9 @@ public class ClientErrors {
                 case "concurrent":
                     int count = args.length > 2 ? Integer.parseInt(args[2]) : 10;
                     client.testConcurrentRequests(count);
+                    break;
+                case "dns":
+                    client.testDnsError();
                     break;
                 default:
                     System.out.println("Unknown test case: " + args[1]);
