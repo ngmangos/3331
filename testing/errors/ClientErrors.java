@@ -115,9 +115,7 @@ public class ClientErrors {
         for (int i = 0; i < count; i++) {
             final int num = i;
             threadPool.execute(() -> {
-                sendRequest("GET http://localhost:8000/concurrent-" + num + " HTTP/1.1", "localhost");
-                sendRequest("GET http://localhost:8000/concurrent-" + num + " HTTP/1.1", "localhost");
-                sendRequest("GET http://localhost:8000/concurrent-" + num + " HTTP/1.1", "localhost");
+                sendMultRequest("GET http://localhost:8000/concurrent-" + num + " HTTP/1.1", "localhost");
             });
         }
     }
@@ -146,6 +144,30 @@ public class ClientErrors {
             System.out.println("Response for '" + requestLine + "': ");
             while ((line = in.readLine()) != null) {
                 System.out.println(line);
+            }
+        } catch (IOException e) {
+            System.out.println("Request failed for '" + requestLine + "': " + e.getMessage());
+        }
+    }
+
+    private void sendMultRequest(String requestLine, String host) {
+        try (Socket socket = new Socket(PROXY_HOST, proxyPort)) {
+            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            for (int i = 0; i < 3; i++) {
+                // Send request
+                out.print(requestLine + "\r\n");
+                out.print("Host: " + host + "\r\n");
+                out.print("Connection: keep-alive\r\n");
+                out.print("\r\n");
+                out.flush();
+                
+                // Read response
+                String line;
+                System.out.println("Response for '" + requestLine + "': ");
+                while ((line = in.readLine()) != null) {
+                    System.out.println(line);
+                }
             }
         } catch (IOException e) {
             System.out.println("Request failed for '" + requestLine + "': " + e.getMessage());
