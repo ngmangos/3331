@@ -37,6 +37,62 @@ public class ClientErrors {
         threadPool.execute(() -> sendRequest("GET http://example.com:8080/INDEX.HTML?FOO=BAR HTTP/1.1", "example.com"));
     }
 
+    public void testConcurrentPersistentConnections() {
+        for (int i = 0; i < 3; i++) {
+            final int clientId = i;
+            threadPool.execute(() -> {
+                try (Socket socket = new Socket(PROXY_HOST, proxyPort)) {
+                    PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+                    BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+
+                    for (int j = 0; j < 3; j++) {
+                        String path = "/persistent-" + j + "-" + clientId;
+                        String requestLine = "GET http://localhost:8000" + path + " HTTP/1.1";
+
+                        out.print(requestLine + "\r\n");
+                        out.print("Host: localhost\r\n");
+                        out.print("Connection: keep-alive\r\n");
+                        out.print("\r\n");
+                        out.flush();
+
+                        System.out.println("Client " + clientId + ", request " + j + ": " + requestLine);
+
+                        // Read response headers
+                        String line;
+                        int contentLength = -1;
+                        while ((line = in.readLine()) != null) {
+                            System.out.println("Client " + clientId + " <- " + line);
+                            if (line.toLowerCase().startsWith("content-length:")) {
+                                contentLength = Integer.parseInt(line.split(":")[1].trim());
+                            }
+                            if (line.isEmpty()) {
+                                break;
+                            }
+                        }
+
+                        // Read body (exactly contentLength bytes)
+                        if (contentLength > 0) {
+                            char[] body = new char[contentLength];
+                            int read = 0;
+                            while (read < contentLength) {
+                                int r = in.read(body, read, contentLength - read);
+                                if (r == -1) break;
+                                read += r;
+                            }
+                            System.out.println("Client " + clientId + " <- " + new String(body));
+                        } else {
+                            System.out.println("Client " + clientId + " <- (No body or unknown length)");
+                        }
+                    }
+
+
+                } catch (IOException e) {
+                    System.out.println("Client " + clientId + " failed: " + e.getMessage());
+                }
+            });
+        }
+    }
+
     public void testCacheMiss() {
         threadPool.execute(() -> sendRequest("GET http://httpforever.com/ HTTP/1.1", "httpforever.com"));
         threadPool.execute(() -> sendRequest("GET http://httpforever.com/js/init.min.js HTTP/1.1", "httpforever.com"));
@@ -111,15 +167,6 @@ public class ClientErrors {
         }
     }
 
-    public void testPersistentConcurrentRequests(int count) {
-        for (int i = 0; i < count; i++) {
-            final int num = i;
-            threadPool.execute(() -> {
-                sendMultRequest("GET http://localhost:8000/concurrent-" + num + " HTTP/1.1", "localhost");
-            });
-        }
-    }
-
     public void testDnsError() {
         threadPool.execute(() -> {
             // Use a domain that definitely doesn't exist
@@ -144,30 +191,6 @@ public class ClientErrors {
             System.out.println("Response for '" + requestLine + "': ");
             while ((line = in.readLine()) != null) {
                 System.out.println(line);
-            }
-        } catch (IOException e) {
-            System.out.println("Request failed for '" + requestLine + "': " + e.getMessage());
-        }
-    }
-
-    private void sendMultRequest(String requestLine, String host) {
-        try (Socket socket = new Socket(PROXY_HOST, proxyPort)) {
-            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            for (int i = 0; i < 3; i++) {
-                // Send request
-                out.print(requestLine + "\r\n");
-                out.print("Host: " + host + "\r\n");
-                out.print("Connection: keep-alive\r\n");
-                out.print("\r\n");
-                out.flush();
-                
-                // Read response
-                String line;
-                System.out.println("Response for '" + requestLine + "': ");
-                while ((line = in.readLine()) != null) {
-                    System.out.println(line);
-                }
             }
         } catch (IOException e) {
             System.out.println("Request failed for '" + requestLine + "': " + e.getMessage());
@@ -230,16 +253,15 @@ public class ClientErrors {
                 case "refused":
                     client.testConnectionRefused();
                     break;
+                case "persist":
+                    client.testConcurrentPersistentConnections();
+                    break;
                 case "closed":
                     client.testConnectionClosed();
                     break;
                 case "concurrent":
                     int count = args.length > 2 ? Integer.parseInt(args[2]) : 10;
                     client.testConcurrentRequests(count);
-                    break;
-                case "persist":
-                    int persistCount = args.length > 2 ? Integer.parseInt(args[2]) : 10;
-                    client.testPersistentConcurrentRequests(persistCount);
                     break;
                 case "chunked":
                     client.testChunkedResponse();
