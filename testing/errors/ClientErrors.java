@@ -13,12 +13,19 @@ public class ClientErrors {
     }
     
     public void testNormalRequest() {
-        threadPool.execute(() -> sendRequest("GET http://example.com HTTP/1.1"));
+        threadPool.execute(() -> sendRequest("GET http://example.com HTTP/1.1", "example.com"));
     }
 
-    public void testCachedRequest() {
-        threadPool.execute(() -> sendRequest("GET http://example.com HTTP/1.1"));
-        threadPool.execute(() -> sendRequest("GET http://example.com HTTP/1.1"));
+    public void testCacheHit() {
+        threadPool.execute(() -> sendRequest("GET http://example.com HTTP/1.1", "example.com"));
+        threadPool.execute(() -> sendRequest("GET http://example.com HTTP/1.1", "example.com"));
+    }
+
+    public void testCacheMiss() {
+        threadPool.execute(() -> sendRequest("GET http://httpforever.com/ HTTP/1.1", "httpforever.com"));
+        threadPool.execute(() -> sendRequest("GET http://httpforever.com/js/init.min.js HTTP/1.1", "httpforever.com"));
+        threadPool.execute(() -> sendRequest("GET http://httpforever.com/js/init.min.js HTTP/1.1", "httpforever.com"));
+        threadPool.execute(() -> sendRequest("GET http://httpforever.com/favicon.ico HTTP/1.1", "httpforever.com"));
     }
     
     public void testConnect() {
@@ -52,34 +59,34 @@ public class ClientErrors {
     }
     
     public void testMalformedConnect() {
-        threadPool.execute(() -> sendRequest("CONNECT example.com:8000 HTTP/1.1")); // Should fail (port not 443)
+        threadPool.execute(() -> sendRequest("CONNECT example.com:8000 HTTP/1.1", "example.com")); // Should fail (port not 443)
     }
     
     public void testNoHost() {
-        threadPool.execute(() -> sendRequest("GET http:///test HTTP/1.1")); // Missing host
+        threadPool.execute(() -> sendRequest("GET http:///test HTTP/1.1", "example.com")); // Missing host
     }
     
     public void testSelfLoop() {
-        threadPool.execute(() -> sendRequest("GET http://" + PROXY_HOST + ":" + proxyPort + "/test HTTP/1.1"));
+        threadPool.execute(() -> sendRequest("GET http://" + PROXY_HOST + ":" + proxyPort + "/test HTTP/1.1", "localhost"));
     }
     
     public void testTimeout() {
-        threadPool.execute(() -> sendRequest("GET http://localhost:8000/timeout HTTP/1.1"));
+        threadPool.execute(() -> sendRequest("GET http://localhost:8000/timeout HTTP/1.1", "localhost"));
     }
     
     public void testConnectionRefused() {
-        threadPool.execute(() -> sendRequest("GET http://localhost:9999/refuse HTTP/1.1")); // Assuming nothing on 9999
+        threadPool.execute(() -> sendRequest("GET http://localhost:9999/refuse HTTP/1.1", "localhost")); // Assuming nothing on 9999
     }
     
     public void testConnectionClosed() {
-        threadPool.execute(() -> sendRequest("GET http://localhost:8000/close HTTP/1.1"));
+        threadPool.execute(() -> sendRequest("GET http://localhost:8000/close HTTP/1.1", "localhost"));
     }
     
     public void testConcurrentRequests(int count) {
         for (int i = 0; i < count; i++) {
             final int num = i;
             threadPool.execute(() -> {
-                sendRequest("GET http://localhost:8000/concurrent-" + num + " HTTP/1.1");
+                sendRequest("GET http://localhost:8000/concurrent-" + num + " HTTP/1.1", "localhost");
             });
         }
     }
@@ -87,18 +94,18 @@ public class ClientErrors {
     public void testDnsError() {
         threadPool.execute(() -> {
             // Use a domain that definitely doesn't exist
-            sendRequest("GET http://nonexistentdomainthatshouldneverexist123.com/test HTTP/1.1");
+            sendRequest("GET http://nonexistentdomainthatshouldneverexist123.com/test HTTP/1.1", "example.com");
         });
     }
     
-    private void sendRequest(String requestLine) {
+    private void sendRequest(String requestLine, String host) {
         try (Socket socket = new Socket(PROXY_HOST, proxyPort)) {
             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             
             // Send request
             out.print(requestLine + "\r\n");
-            out.print("Host: example.com" + "\r\n");
+            out.print("Host: " + host + "\r\n");
             out.print("Connection: keep-alive\r\n");
             out.print("\r\n");
             out.flush();
@@ -141,7 +148,10 @@ public class ClientErrors {
                     client.testNormalRequest();
                     break;
                 case "cached":
-                    client.testCachedRequest();
+                    client.testCacheHit();
+                    break;
+                case "miss":
+                    client.testCacheMiss();
                     break;
                 case "connect":
                     client.testConnect();
