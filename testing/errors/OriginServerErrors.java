@@ -52,10 +52,7 @@ public class OriginServerErrors {
                     sendErrorResponse(out, 400, "Bad Request");
                     return;
                 }
-                
-                String method = parts[0];
                 String path = parts[1];
-                String version = parts[2];
                 
                 // Read headers
                 String line;

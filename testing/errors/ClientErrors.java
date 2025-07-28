@@ -21,6 +21,22 @@ public class ClientErrors {
         threadPool.execute(() -> sendRequest("GET http://example.com HTTP/1.1", "example.com"));
     }
 
+    public void testCacheSynonyms() {
+        threadPool.execute(() -> sendRequest("GET http://example.com HTTP/1.1", "example.com"));
+        threadPool.execute(() -> sendRequest("GET http://example.com/ HTTP/1.1", "example.com"));
+        threadPool.execute(() -> sendRequest("GET HTTP://EXAMPLE.COM/ HTTP/1.1", "example.com"));
+        threadPool.execute(() -> sendRequest("GET HTTP://EXAMPLE.COM:80/ HTTP/1.1", "example.com"));
+        threadPool.execute(() -> sendRequest("GET HTTP://EXAMPLE.COM:0080/ HTTP/1.1", "example.com"));
+    }
+
+    public void testCacheAntonyms() {
+        threadPool.execute(() -> sendRequest("GET http://example.com/ HTTP/1.1", "example.com"));
+        threadPool.execute(() -> sendRequest("GET http://example.com/index.html HTTP/1.1", "example.com"));
+        threadPool.execute(() -> sendRequest("GET http://example.com/INDEX.HTML HTTP/1.1", "example.com"));
+        threadPool.execute(() -> sendRequest("GET http://example.com:8080/INDEX.HTML HTTP/1.1", "example.com"));
+        threadPool.execute(() -> sendRequest("GET http://example.com:8080/INDEX.HTML?FOO=BAR HTTP/1.1", "example.com"));
+    }
+
     public void testCacheMiss() {
         threadPool.execute(() -> sendRequest("GET http://httpforever.com/ HTTP/1.1", "httpforever.com"));
         threadPool.execute(() -> sendRequest("GET http://httpforever.com/js/init.min.js HTTP/1.1", "httpforever.com"));
@@ -95,6 +111,17 @@ public class ClientErrors {
         }
     }
 
+    public void testPersistentConcurrentRequests(int count) {
+        for (int i = 0; i < count; i++) {
+            final int num = i;
+            threadPool.execute(() -> {
+                sendRequest("GET http://localhost:8000/concurrent-" + num + " HTTP/1.1", "localhost");
+                sendRequest("GET http://localhost:8000/concurrent-" + num + " HTTP/1.1", "localhost");
+                sendRequest("GET http://localhost:8000/concurrent-" + num + " HTTP/1.1", "localhost");
+            });
+        }
+    }
+
     public void testDnsError() {
         threadPool.execute(() -> {
             // Use a domain that definitely doesn't exist
@@ -154,6 +181,12 @@ public class ClientErrors {
                 case "cached":
                     client.testCacheHit();
                     break;
+                case "synonyms":
+                    client.testCacheSynonyms();
+                    break;
+                case "antonyms":
+                    client.testCacheAntonyms();
+                    break;
                 case "miss":
                     client.testCacheMiss();
                     break;
@@ -181,6 +214,10 @@ public class ClientErrors {
                 case "concurrent":
                     int count = args.length > 2 ? Integer.parseInt(args[2]) : 10;
                     client.testConcurrentRequests(count);
+                    break;
+                case "persist":
+                    int persistCount = args.length > 2 ? Integer.parseInt(args[2]) : 10;
+                    client.testPersistentConcurrentRequests(persistCount);
                     break;
                 case "chunked":
                     client.testChunkedResponse();
