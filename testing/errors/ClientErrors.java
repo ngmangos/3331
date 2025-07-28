@@ -81,6 +81,10 @@ public class ClientErrors {
     public void testConnectionClosed() {
         threadPool.execute(() -> sendRequest("GET http://localhost:8000/close HTTP/1.1", "localhost"));
     }
+
+    public void testChunkedResponse() {
+        threadPool.execute(() -> sendRequest("GET http://localhost:8000/chunked HTTP/1.1", "localhost"));
+    }
     
     public void testConcurrentRequests(int count) {
         for (int i = 0; i < count; i++) {
@@ -177,6 +181,9 @@ public class ClientErrors {
                 case "concurrent":
                     int count = args.length > 2 ? Integer.parseInt(args[2]) : 10;
                     client.testConcurrentRequests(count);
+                    break;
+                case "chunked":
+                    client.testChunkedResponse();
                     break;
                 case "dns":
                     client.testDnsError();

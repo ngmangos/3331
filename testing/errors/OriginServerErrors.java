@@ -90,6 +90,26 @@ public class OriginServerErrors {
                     Thread.sleep(1000);
                     out.println("Slow response");
                     out.flush();
+                } else if (path.equals("/chunked")) {
+                    OutputStream rawOut = clientSocket.getOutputStream();
+                    PrintWriter outWriter = new PrintWriter(rawOut, true);
+
+                    outWriter.print("HTTP/1.1 200 OK\r\n");
+                    outWriter.print("Content-Type: text/plain\r\n");
+                    outWriter.print("Transfer-Encoding: chunked\r\n");
+                    outWriter.print("\r\n");
+                    outWriter.flush();
+
+                    // Simulate sending 3 chunks
+                    sendChunk(rawOut, "This is chunk one.");
+                    Thread.sleep(500);
+                    sendChunk(rawOut, "Second chunk coming.");
+                    Thread.sleep(500);
+                    sendChunk(rawOut, "Final chunk.");
+                    
+                    // End chunked stream
+                    rawOut.write("0\r\n\r\n".getBytes());
+                    rawOut.flush();
                 } else {
                     // Normal response
                     sendResponse(out, 200, "OK", "Normal response from origin");
@@ -119,6 +139,13 @@ public class OriginServerErrors {
         
         private void sendErrorResponse(PrintWriter out, int code, String reason) {
             sendResponse(out, code, reason, "Error: " + reason);
+        }
+
+        private void sendChunk(OutputStream out, String data) throws IOException {
+            String chunkSize = Integer.toHexString(data.length());
+            out.write((chunkSize + "\r\n").getBytes());
+            out.write((data + "\r\n").getBytes());
+            out.flush();
         }
     }
     
